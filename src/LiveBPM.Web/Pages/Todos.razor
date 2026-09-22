@@ -1,0 +1,137 @@
+@page "/todos"
+@inject TodoService TodoService
+
+<PageTitle>Todos</PageTitle>
+
+<div class="max-w-4xl mx-auto">
+    <h1 class="text-3xl font-bold text-primary mb-6">Todos</h1>
+
+    <div class="card bg-base-100 shadow-xl border border-base-200 mb-8">
+        <div class="card-body">
+            <h2 class="card-title">Add a todo</h2>
+            <div class="flex flex-col md:flex-row gap-3 mt-2">
+                <input type="text"
+                       class="input input-bordered flex-1"
+                       placeholder="What needs to be done?"
+                       @bind="_newTitle"
+                       @bind:event="oninput" />
+                <input type="text"
+                       class="input input-bordered flex-1"
+                       placeholder="Description (optional)"
+                       @bind="_newDescription"
+                       @bind:event="oninput" />
+                <button class="btn btn-primary" @onclick="AddTodoAsync" disabled="@_isSubmitting">
+                    @if (_isSubmitting)
+                    {
+                        <span class="loading loading-spinner loading-sm"></span>
+                    }
+                    Add
+                </button>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(_errorMessage))
+            {
+                <div class="alert alert-error mt-4">
+                    <span>@_errorMessage</span>
+                </div>
+            }
+        </div>
+    </div>
+
+    @if (_todos is null)
+    {
+        <div class="flex justify-center py-12">
+            <span class="loading loading-spinner loading-lg text-primary"></span>
+        </div>
+    }
+    else if (_todos.Count == 0)
+    {
+        <div class="alert alert-info">
+            <span>No todos yet. Create one above!</span>
+        </div>
+    }
+    else
+    {
+        <div class="card bg-base-100 shadow border border-base-200">
+            <div class="card-body p-0">
+                <table class="table table-zebra">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Description</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var todo in _todos)
+                        {
+                            <tr>
+                                <td class="font-medium">@todo.Title</td>
+                                <td class="text-base-content/70">@todo.Description</td>
+                                <td><span class="badge badge-outline">@todo.Status</span></td>
+                                <td class="text-sm text-base-content/60">@todo.CreatedAt.ToLocalTime().ToString("g")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<TodoItemDto>? _todos;
+    private string _newTitle = string.Empty;
+    private string _newDescription = string.Empty;
+    private bool _isSubmitting;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTodosAsync();
+    }
+
+    private async Task LoadTodosAsync()
+    {
+        try
+        {
+            _todos = (await TodoService.GetTodosAsync()).ToList();
+            _errorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to load todos: {ex.Message}";
+        }
+    }
+
+    private async Task AddTodoAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_newTitle))
+        {
+            _errorMessage = "Title is required.";
+            return;
+        }
+
+        _isSubmitting = true;
+        _errorMessage = null;
+
+        try
+        {
+            var created = await TodoService.CreateAsync(new CreateTodoItemCommand(_newTitle, _newDescription));
+            if (created is not null)
+            {
+                await LoadTodosAsync();
+                _newTitle = string.Empty;
+                _newDescription = string.Empty;
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to create todo: {ex.Message}";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+}

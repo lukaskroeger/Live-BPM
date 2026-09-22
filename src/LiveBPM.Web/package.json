@@ -1,0 +1,15 @@
+{
+  "name": "livebpm-web",
+  "version": "1.0.0",
+  "description": "Tailwind CSS and DaisyUI build configuration for LiveBPM.Web",
+  "scripts": {
+    "build-css": "npx @tailwindcss/cli -i ./tailwind.css -o ./wwwroot/tailwindStyles.css",
+    "build-css-prod": "npx @tailwindcss/cli -i ./tailwind.css -o ./wwwroot/tailwindStyles.css --minify",
+    "watch-css": "npx @tailwindcss/cli -i ./tailwind.css -o ./wwwroot/tailwindStyles.css --watch"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.2.1",
+    "daisyui": "^5.0.0",
+    "tailwindcss": "^4.2.1"
+  }
+}

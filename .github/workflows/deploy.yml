@@ -1,0 +1,187 @@
+#
+name: Build and Deploy LiveBPM
+
+# Triggers on every push to main
+on:
+  push:
+    branches: ['main']
+
+# Environment variables shared across jobs
+env:
+  REGISTRY: ghcr.io
+
+# ──────────────────────────────────────────────
+# JOB 1: Build & push the API Docker image
+# ──────────────────────────────────────────────
+jobs:
+  build-and-push-api:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for API image
+        id: meta-api
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}-api
+          tags: |
+            type=sha,prefix=,suffix=,format=short
+            type=raw,value=latest
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push API Docker image
+        id: push-api
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: src/LiveBPM.Api/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta-api.outputs.tags }}
+          labels: ${{ steps.meta-api.outputs.labels }}
+
+  # ──────────────────────────────────────────────
+  # JOB 2: Build & push the Web Docker image
+  # ──────────────────────────────────────────────
+  build-and-push-web:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Web image
+        id: meta-web
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}-web
+          tags: |
+            type=sha,prefix=,suffix=,format=short
+            type=raw,value=latest
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Web Docker image
+        id: push-web
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: src/LiveBPM.Web/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta-web.outputs.tags }}
+          labels: ${{ steps.meta-web.outputs.labels }}
+
+  # ──────────────────────────────────────────────
+  # JOB 3: Deploy both services via SSH
+  # ──────────────────────────────────────────────
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [build-and-push-api, build-and-push-web]
+    env:
+      VERSION: ${{ github.sha }}
+      API_IMAGE: ghcr.io/${{ github.repository }}-api
+      WEB_IMAGE: ghcr.io/${{ github.repository }}-web
+      ASPNETCORE_ENVIRONMENT: Production
+      DB_USER: ${{ secrets.DB_USER }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      DB_NAME: ${{ secrets.DB_NAME }}
+      DB_HOST_PORT: ${{ vars.DB_HOST_PORT }}
+      API_HOST_PORT: ${{ vars.API_HOST_PORT }}
+      WEB_HOST_PORT: ${{ vars.WEB_HOST_PORT }}
+      WEB_ORIGIN: ${{ secrets.WEB_ORIGIN }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Generate docker-compose.yml from the compose source with env vars substituted
+      - name: Generate docker-compose.yml from the compose source
+        run: |
+          export API_IMAGE_TAG="${GITHUB_SHA::7}"
+          export WEB_IMAGE_TAG="${GITHUB_SHA::7}"
+          envsubst < docker-compose.template.yml > docker-compose.yml
+          echo "Generated docker-compose.yml with API_IMAGE_TAG=${API_IMAGE_TAG}, WEB_IMAGE_TAG=${WEB_IMAGE_TAG}:"
+          cat docker-compose.yml
+
+      # Write SSH key to a temp file
+      - name: Setup SSH Key
+        run: |
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > key.pem
+          chmod 600 key.pem
+
+      # Add remote host to known_hosts
+      - name: Add Remote Host to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -p 22 ${{ secrets.REMOTE_HOST }} >> ~/.ssh/known_hosts
+
+      # Copy docker-compose.yml to the remote server
+      - name: Copy docker-compose.yml to remote server
+        run: |
+          scp -i key.pem -P 22 docker-compose.yml ${{ secrets.REMOTE_USER }}@${{ secrets.REMOTE_HOST }}:~/livebpm/docker-compose.yml
+
+      # SSH into the server, pull images, and restart containers
+      - name: Deploy on remote server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            # Create deployment directory if it doesn't exist
+            mkdir -p ~/livebpm
+
+            # Log in to GitHub Container Registry
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login -u "${{ github.actor }}" --password-stdin ${{ env.REGISTRY }}
+
+            # Move to deployment directory
+            cd ~/livebpm
+
+            # Pull the latest images
+            docker compose pull
+
+            # Stop existing containers
+            docker compose down
+
+            # Start updated containers in detached mode
+            docker compose up -d
+
+            # Clean up dangling images
+            docker image prune -f
