@@ -27,7 +27,7 @@
             <div class="flex items-center gap-2 shrink-0">
                 <div class="hidden sm:flex flex-col items-end px-2 py-0.5 rounded bg-surface-high">
                     <span class="font-mono text-[10px] font-bold uppercase tracking-wider text-primary">
-                        @(_bpm > 0 ? _bpm.ToString() : "--.") BPM
+                        @(_bpm > 0 ? _bpm.ToString("0") : "--") BPM
                     </span>
                     <span class="font-mono text-[8px] font-bold uppercase tracking-wider text-on-surface-variant">4/4 SYNC</span>
                 </div>
@@ -89,20 +89,11 @@
             <!-- Stage glow -->
             <div class="absolute -top-10 left-1/2 -translate-x-1/2 w-48 h-48 rounded-full bg-primary/10 blur-3xl pointer-events-none"></div>
 
-            <!-- 4-beat step indicator -->
-            <div class="flex items-center justify-center gap-2 mb-4 max-w-[280px] mx-auto">
-                @for (var i = 1; i <= 4; i++)
-                {
-                    var beat = i;
-                    <div class="beat-step @(_beatPhase == beat ? (beat == 1 ? "downbeat" : "active") : "")"></div>
-                }
-            </div>
-
             <!-- BPM readout -->
             <div class="relative flex flex-col items-center justify-center text-center">
                 <div class="flex items-baseline justify-center tracking-tighter">
                     <span class="display-hero text-primary font-bold @(_isListening && _bpm > 0 ? "drop-shadow-[0_0_12px_rgba(0,255,135,0.45)]" : "text-on-surface-variant") tabular-nums">
-                        @(_bpm > 0 ? _bpm.ToString("0.0") : "--")
+                        @(_bpm > 0 ? _bpm.ToString("0") : "--")
                     </span>
                     <span class="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-on-surface-variant ml-2">BPM</span>
                 </div>
@@ -278,6 +269,21 @@
                         <button class="btn-transport" @onclick="ClearTargetBpmAsync" disabled="@(_options.TargetBpm == 0)">Auto</button>
                     </div>
                     <p class="text-xs text-text-muted mt-1">Set an expected tempo to reduce octave jumps. Leave empty for automatic detection.</p>
+                </div>
+
+                <div class="lg:col-span-2">
+                    <span class="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-on-surface-variant block mb-1">Detection Engine</span>
+                    <div class="flex items-center gap-1 bg-recessed rounded p-0.5 border border-border-subdued">
+                        <button class="px-3 py-0.5 rounded font-mono text-[9px] font-bold uppercase tracking-wider transition-colors @(_options.DetectionMode == "spectral" ? "bg-surface-high text-primary" : "text-on-surface-variant")"
+                                @onclick="OnSetSpectralAsync">
+                            Spectral (Onset)
+                        </button>
+                        <button class="px-3 py-0.5 rounded font-mono text-[9px] font-bold uppercase tracking-wider transition-colors @(_options.DetectionMode == "threshold" ? "bg-surface-high text-primary" : "text-on-surface-variant")"
+                                @onclick="OnSetThresholdAsync">
+                            Threshold (Legacy)
+                        </button>
+                    </div>
+                    <p class="text-xs text-text-muted mt-1">Spectral uses frequency-domain onset detection (robust to quiet/compressed audio). Threshold uses the original amplitude detector.</p>
                 </div>
 
                 <ParameterSlider
@@ -479,6 +485,16 @@
         }
     }
 
+    private async Task OnDetectionModeChangedAsync(string mode)
+    {
+        if (_options.DetectionMode == mode) return;
+        await UpdateOption(o => o with { DetectionMode = mode });
+    }
+
+    private Task OnSetSpectralAsync() => OnDetectionModeChangedAsync("spectral");
+
+    private Task OnSetThresholdAsync() => OnDetectionModeChangedAsync("threshold");
+
     private async Task ClearTargetBpmAsync()
     {
         await UpdateOption(o => o with { TargetBpm = 0 });
@@ -554,9 +570,9 @@
         var sign = drift >= 0 ? "+" : "";
         if (_options.TargetBpm <= 0 || _bpm <= 0) return "NO TARGET";
         if (Math.Abs(drift) <= 0.4) return "LOCKED";
-        if (drift > Tolerance) return $"RUSH {sign}{drift:F1}";
-        if (drift < -Tolerance) return $"LAG {drift:F1}";
-        return $"{sign}{drift:F1} BPM";
+        if (drift > Tolerance) return $"RUSH {sign}{drift:F0}";
+        if (drift < -Tolerance) return $"LAG {drift:F0}";
+        return $"{sign}{drift:F0} BPM";
     }
 
     private string GetDriftTextClass()
@@ -605,10 +621,10 @@
         var drift = Drift;
         var sign = drift >= 0 ? "+" : "";
         if (_options.TargetBpm <= 0) return $"LIVE ({_bpm:F0})";
-        if (Math.Abs(drift) <= 0.4) return $"POCKET ({sign}{drift:F1})";
-        if (drift > Tolerance) return $"RUSH ({sign}{drift:F1})";
-        if (drift < -Tolerance) return $"DRAG ({drift:F1})";
-        return $"TRACK ({sign}{drift:F1})";
+        if (Math.Abs(drift) <= 0.4) return $"POCKET ({sign}{drift:F0})";
+        if (drift > Tolerance) return $"RUSH ({sign}{drift:F0})";
+        if (drift < -Tolerance) return $"DRAG ({drift:F0})";
+        return $"TRACK ({sign}{drift:F0})";
     }
 
     private string GetSparklinePath()
@@ -685,7 +701,8 @@
         double EnergyFloor = 0.015,
         int BeatHistorySize = 16,
         int EnergyHistorySize = 43,
-        int TargetBpm = 0);
+        int TargetBpm = 0,
+        string DetectionMode = "spectral");
 
     public sealed record BpmUpdate(
         double Bpm,
