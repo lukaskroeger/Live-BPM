@@ -9,11 +9,6 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.11" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="10.0.11" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.11" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\LiveBPM.Contracts\LiveBPM.Contracts.csproj" />
   </ItemGroup>
 
   <Target Name="BuildTailwind" BeforeTargets="Build" Condition="'$(Configuration)' == 'Debug' And Exists('$(MSBuildProjectDirectory)\node_modules')">

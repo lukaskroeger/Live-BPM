@@ -1,12 +1,16 @@
-<ul class="menu menu-vertical gap-2">
+<ul class="flex flex-col gap-1">
     <li>
-        <NavLink href="/" Match="NavLinkMatch.All" class="nav-link" ActiveClass="active">
+        <NavLink href="/" Match="NavLinkMatch.All"
+                 class="flex items-center gap-3 px-3 py-2 rounded-md font-mono text-xs uppercase tracking-widest text-on-surface-variant hover:bg-surface-high hover:text-on-surface transition-colors"
+                 ActiveClass="bg-surface-high text-primary shadow-glow-primary">
             Home
         </NavLink>
     </li>
     <li>
-        <NavLink href="/todos" class="nav-link" ActiveClass="active">
-            Todos
+        <NavLink href="/bpm"
+                 class="flex items-center gap-3 px-3 py-2 rounded-md font-mono text-xs uppercase tracking-widest text-on-surface-variant hover:bg-surface-high hover:text-on-surface transition-colors"
+                 ActiveClass="bg-surface-high text-primary shadow-glow-primary">
+            BPM Detector
         </NavLink>
     </li>
 </ul>

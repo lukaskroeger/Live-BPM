@@ -1,0 +1,685 @@
+@page "/bpm"
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<PageTitle>Tempo Console</PageTitle>
+
+<div class="min-h-full flex flex-col">
+    <!-- Performance Header -->
+    <header class="sticky top-0 z-30 bg-canvas/90 backdrop-blur-xl border-b border-border-subdued shadow-raised">
+        <div class="flex items-center justify-between h-14 px-4">
+            <div class="flex items-center gap-3 min-w-0">
+                <div class="w-8 h-8 rounded-md bg-primary flex items-center justify-center shadow-glow-primary">
+                    <svg class="w-5 h-5 text-on-primary" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" />
+                    </svg>
+                </div>
+                <div class="flex flex-col min-w-0">
+                    <span class="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-on-surface truncate">TempoPulse</span>
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full @(_isListening ? "bg-primary animate-pulse" : "bg-text-muted")"></span>
+                        <span class="font-mono text-[9px] font-bold uppercase tracking-[0.08em] text-on-surface-variant truncate">
+                            @(_isListening ? "MIC ACTIVE • DSP LOCK" : "STANDBY")
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+                <div class="hidden sm:flex flex-col items-end px-2 py-0.5 rounded bg-surface-high">
+                    <span class="font-mono text-[10px] font-bold uppercase tracking-wider text-primary">
+                        @(_bpm > 0 ? _bpm.ToString() : "--.") BPM
+                    </span>
+                    <span class="font-mono text-[8px] font-bold uppercase tracking-wider text-on-surface-variant">4/4 SYNC</span>
+                </div>
+                <button class="w-10 h-10 flex items-center justify-center rounded bg-raised border border-border-subdued active:translate-y-px transition-transform"
+                        @onclick="() => _showSettings = !_showSettings"
+                        aria-label="Toggle settings">
+                    <svg class="w-5 h-5 text-on-surface" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Performance Console -->
+    <main class="flex-1 flex flex-col gap-3 p-3 pb-safe overflow-y-auto no-scrollbar">
+        @if (!string.IsNullOrWhiteSpace(_errorMessage))
+        {
+            <div class="p-3 rounded-lg bg-error-container/40 border border-error text-error text-sm font-sans">
+                @_errorMessage
+            </div>
+        }
+
+        <!-- Stage Header Bar -->
+        <section class="perf-module p-3">
+            <div class="flex items-center justify-between gap-3">
+                <div class="flex flex-col min-w-0">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-primary-container animate-ping"></span>
+                        <h1 class="font-display text-lg font-bold text-primary tracking-tight truncate">Live Session</h1>
+                    </div>
+                    <span class="font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-on-surface-variant mt-0.5">Real-Time Tempo Telemetry</span>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                    <div class="flex items-center gap-1.5 bg-recessed px-2.5 py-1.5 rounded-lg border border-border-subdued">
+                        <span class="font-mono text-[9px] font-bold uppercase tracking-wider text-on-surface-variant">Target</span>
+                        <input type="number"
+                               class="input-inline"
+                               min="30"
+                               max="300"
+                               placeholder="--"
+                               value="@(_options.TargetBpm > 0 ? _options.TargetBpm.ToString() : "")"
+                               @oninput="OnTargetBpmChanged"
+                               aria-label="Target BPM" />
+                    </div>
+                    <button class="h-9 px-3 flex items-center gap-1 rounded-lg bg-surface-container border border-border-subdued active:translate-y-px transition-transform text-primary font-mono text-[10px] font-bold uppercase tracking-widest"
+                            @onclick="TapTempoAsync">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M9 11.24V7.5C9 6.12 10.12 5 11.5 5S14 6.12 14 7.5v3.74c1.21-.81 2-2.18 2-3.74C16 5.01 13.99 3 11.5 3S7 5.01 7 7.5c0 1.56.79 2.93 2 3.74zm9.84 4.63l-4.54-2.26c-.17-.07-.35-.11-.54-.11H13v-6c0-.83-.67-1.5-1.5-1.5S10 6.67 10 7.5v10.74l-3.43-.72c-.08-.01-.15-.03-.24-.03-.31 0-.59.13-.79.33l-.79.8 4.94 4.94c.27.27.65.44 1.06.44h6.79c.75 0 1.33-.55 1.44-1.28l.75-5.27c.01-.07.02-.14.02-.2 0-.62-.38-1.16-.91-1.38z" />
+                        </svg>
+                        <span>TAP</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Hero Live BPM Readout -->
+        <section class="perf-module p-4 relative overflow-hidden">
+            <!-- Stage glow -->
+            <div class="absolute -top-10 left-1/2 -translate-x-1/2 w-48 h-48 rounded-full bg-primary/10 blur-3xl pointer-events-none"></div>
+
+            <!-- 4-beat step indicator -->
+            <div class="flex items-center justify-center gap-2 mb-4 max-w-[280px] mx-auto">
+                @for (var i = 1; i <= 4; i++)
+                {
+                    var beat = i;
+                    <div class="beat-step @(_beatPhase == beat ? (beat == 1 ? "downbeat" : "active") : "")"></div>
+                }
+            </div>
+
+            <!-- BPM readout -->
+            <div class="relative flex flex-col items-center justify-center text-center">
+                <div class="flex items-baseline justify-center tracking-tighter">
+                    <span class="display-hero text-primary font-bold @(_isListening && _bpm > 0 ? "drop-shadow-[0_0_12px_rgba(0,255,135,0.45)]" : "text-on-surface-variant") tabular-nums">
+                        @(_bpm > 0 ? _bpm.ToString("0.0") : "--")
+                    </span>
+                    <span class="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-on-surface-variant ml-2">BPM</span>
+                </div>
+
+                <!-- Status pill -->
+                <div class="mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface-high border border-border-subdued">
+                    <span class="w-2 h-2 rounded-full @GetStatusDotClass() @(_isListening ? "animate-pulse" : "") shadow-[0_0_8px_currentColor]"></span>
+                    <span class="font-mono text-[10px] font-bold uppercase tracking-wider @GetStatusTextClass()">
+                        @GetStatusText()
+                    </span>
+                </div>
+            </div>
+
+            <!-- Transport -->
+            <div class="flex flex-wrap justify-center gap-3 mt-6 relative">
+                <button class="btn-transport @(_isListening ? "btn-transport-secondary" : "btn-transport-primary")"
+                        @onclick="ToggleListeningAsync"
+                        disabled="@_isInitializing">
+                    @if (_isInitializing)
+                    {
+                        <span>Starting...</span>
+                    }
+                    else if (_isListening)
+                    {
+                        <span>Stop</span>
+                    }
+                    else
+                    {
+                        <span>Start Listening</span>
+                    }
+                </button>
+                <button class="btn-transport" @onclick="ResetAsync" disabled="!_isListening">
+                    Reset
+                </button>
+            </div>
+        </section>
+
+        <!-- Tempo Alignment / Drift Tuner -->
+        <section class="perf-module p-3">
+            <div class="flex items-center justify-between mb-2">
+                <span class="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-on-surface">Tempo Alignment</span>
+                <span class="font-mono text-[10px] font-bold uppercase tracking-wider @GetDriftTextClass()">
+                    @GetDriftText()
+                </span>
+            </div>
+            <div class="telemetry-well p-2 flex flex-col gap-1.5">
+                <div class="flex justify-between font-mono text-[9px] font-bold uppercase tracking-wider px-1 text-on-surface-variant">
+                    <span class="text-error">◀ Drag</span>
+                    <span class="text-primary">0 Sync</span>
+                    <span class="text-tertiary">Rush ▶</span>
+                </div>
+                <div class="relative w-full h-6 flex items-center">
+                    <div class="w-full h-2 rounded bg-surface-high relative overflow-hidden flex items-center">
+                        <div class="absolute left-0 w-1/3 h-full bg-error/20"></div>
+                        <div class="absolute left-1/3 w-1/3 h-full bg-primary/20"></div>
+                        <div class="absolute right-0 w-1/3 h-full bg-tertiary/20"></div>
+                        <div class="absolute left-1/2 -translate-x-1/2 w-0.5 h-full bg-primary shadow-glow-primary"></div>
+                    </div>
+                    <div class="drift-needle @GetDriftNeedleClass()" style="left: calc(@GetDriftPercent().ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)% - 2px);"></div>
+                </div>
+            </div>
+            <div class="flex items-center justify-between mt-2">
+                <span class="font-mono text-[9px] font-bold uppercase tracking-wider text-on-surface-variant">Tolerance</span>
+                <div class="flex items-center gap-1 bg-recessed rounded p-0.5 border border-border-subdued">
+                    <button class="px-2 py-0.5 rounded font-mono text-[9px] font-bold uppercase tracking-wider transition-colors @(_strictTolerance ? "bg-surface-high text-primary" : "text-on-surface-variant")"
+                            @onclick="() => _strictTolerance = true">
+                        Strict
+                    </button>
+                    <button class="px-2 py-0.5 rounded font-mono text-[9px] font-bold uppercase tracking-wider transition-colors @(!_strictTolerance ? "bg-surface-high text-primary" : "text-on-surface-variant")"
+                            @onclick="() => _strictTolerance = false">
+                        Stage
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Rolling 30s Trend -->
+        <section class="perf-module p-3">
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-1.5">
+                    <svg class="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z" />
+                    </svg>
+                    <span class="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-on-surface">Rolling 30s Trend</span>
+                </div>
+                <span class="font-mono text-[9px] font-bold uppercase tracking-wider text-on-surface-variant">
+                    Base @(_options.TargetBpm > 0 ? _options.TargetBpm.ToString() : "--") BPM
+                </span>
+            </div>
+            <div class="telemetry-well p-2 h-28 flex flex-col justify-end">
+                @if (_history.Count >= 2)
+                {
+                    <svg class="w-full h-full" preserveAspectRatio="none" viewBox="0 0 300 70">
+                        <defs>
+                            <linearGradient id="sparkGradient" x1="0" x2="0" y1="0" y2="1">
+                                <stop offset="0%" stop-color="#00ff87" stop-opacity="0.35" />
+                                <stop offset="100%" stop-color="#00ff87" stop-opacity="0" />
+                            </linearGradient>
+                        </defs>
+                        <rect fill="#00ff87" fill-opacity="0.05" height="20" width="300" x="0" y="25" />
+                        <line opacity="0.4" stroke="#849585" stroke-dasharray="3 3" stroke-width="1" x1="0" x2="300" y1="35" y2="35" />
+                        <polygon fill="url(#sparkGradient)" points="@GetSparklineAreaPoints()" />
+                        <path d="@GetSparklinePath()" fill="none" stroke="#00ff87" stroke-linecap="round" stroke-width="2.5" />
+                        <circle cx="300" cy="@GetSparklineLastY().ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)" fill="#00ff87" r="3.5" stroke="#0a0e13" stroke-width="1.5" />
+                    </svg>
+                }
+                else
+                {
+                    <div class="flex items-center justify-center h-full">
+                        <span class="font-mono text-[10px] uppercase tracking-wider text-on-surface-variant">No data</span>
+                    </div>
+                }
+                <div class="flex justify-between items-center px-1 font-mono text-[8px] text-on-surface-variant mt-1">
+                    <span>-30s</span>
+                    <span>-15s</span>
+                    <span class="text-primary font-bold">NOW</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Quick Stage Controls -->
+        <section class="grid grid-cols-2 gap-3">
+            <button class="perf-module p-3 flex items-center justify-between active:scale-[0.98] transition-transform"
+                    @onclick="() => _hapticEnabled = !_hapticEnabled">
+                <div class="flex items-center gap-2">
+                    <svg class="w-5 h-5 text-primary" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M0 15h2V9H0v6zm3 2h2V7H3v10zm19-8v6h2V9h-2zm-3 8h2V7h-2v10zM16.5 3h-9C6.67 3 6 3.67 6 4.5v15c0 .83.67 1.5 1.5 1.5h9c.83 0 1.5-.67 1.5-1.5v-15c0-.83-.67-1.5-1.5-1.5zM16 19H8V5h8v14z" />
+                    </svg>
+                    <span class="font-mono text-[10px] font-bold uppercase tracking-wider text-on-surface">Haptic Drift Cue</span>
+                </div>
+                <span class="toggle-badge @(_hapticEnabled ? "on" : "off")">@(_hapticEnabled ? "ON" : "OFF")</span>
+            </button>
+            <button class="perf-module p-3 flex items-center justify-between active:scale-[0.98] transition-transform"
+                    @onclick="() => _flashOnDrift = !_flashOnDrift">
+                <div class="flex items-center gap-2">
+                    <svg class="w-5 h-5 text-primary" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M7 2v11h3v9l7-12h-4l4-8z" />
+                    </svg>
+                    <span class="font-mono text-[10px] font-bold uppercase tracking-wider text-on-surface">Flash on Drift</span>
+                </div>
+                <span class="toggle-badge @(_flashOnDrift ? "on" : "off")">@(_flashOnDrift ? "ON" : "OFF")</span>
+            </button>
+        </section>
+
+        <!-- Detection Settings (collapsible) -->
+        <section class="perf-module overflow-hidden transition-all @(_showSettings ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0")">
+            <div class="p-3 border-b border-border-subdued bg-surface-container">
+                <span class="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-on-surface-variant">Detection Settings</span>
+            </div>
+            <div class="p-3 grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-4">
+                <div class="lg:col-span-2">
+                    <label class="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-on-surface-variant block mb-1">Target BPM</label>
+                    <div class="flex gap-2">
+                        <input type="number"
+                               class="input-well w-28"
+                               min="30"
+                               max="300"
+                               placeholder="Auto"
+                               value="@(_options.TargetBpm > 0 ? _options.TargetBpm.ToString() : "")"
+                               @oninput="OnTargetBpmChanged" />
+                        <button class="btn-transport" @onclick="ClearTargetBpmAsync" disabled="@(_options.TargetBpm == 0)">Auto</button>
+                    </div>
+                    <p class="text-xs text-text-muted mt-1">Set an expected tempo to reduce octave jumps. Leave empty for automatic detection.</p>
+                </div>
+
+                <ParameterSlider
+                    Label="Sensitivity"
+                    Min="1.0"
+                    Max="3.0"
+                    Step="0.1"
+                    Value="@_options.Sensitivity"
+                    Hint="How far above the average input level a peak must be to count as a beat."
+                    ValueChanged="v => UpdateOption(o => o with { Sensitivity = v })" />
+
+                <ParameterSlider
+                    Label="Minimum Beat Interval"
+                    Min="200"
+                    Max="800"
+                    Step="10"
+                    Value="@_options.MinBeatIntervalMs"
+                    Unit="ms"
+                    Hint="Shortest time allowed between two beats."
+                    ValueChanged="v => UpdateOption(o => o with { MinBeatIntervalMs = (int)v })" />
+
+                <ParameterSlider
+                    Label="Smoothing"
+                    Min="0"
+                    Max="0.95"
+                    Step="0.05"
+                    Value="@_options.Smoothing"
+                    Hint="How much the displayed BPM follows the previous reading."
+                    ValueChanged="v => UpdateOption(o => o with { Smoothing = v })" />
+
+                <ParameterSlider
+                    Label="Filter Frequency"
+                    Min="200"
+                    Max="3000"
+                    Step="50"
+                    Value="@_options.FilterFrequency"
+                    Unit="Hz"
+                    Hint="Center frequency of the bandpass filter."
+                    ValueChanged="v => UpdateOption(o => o with { FilterFrequency = (int)v })" />
+
+                <ParameterSlider
+                    Label="Filter Q"
+                    Min="0.5"
+                    Max="10"
+                    Step="0.5"
+                    Value="@_options.FilterQ"
+                    Hint="How narrow the frequency band is."
+                    ValueChanged="v => UpdateOption(o => o with { FilterQ = v })" />
+
+                <ParameterSlider
+                    Label="Energy Floor"
+                    Min="0.001"
+                    Max="0.1"
+                    Step="0.001"
+                    Value="@_options.EnergyFloor"
+                    Hint="Minimum audio level required to register a beat."
+                    ValueChanged="v => UpdateOption(o => o with { EnergyFloor = v })" />
+
+                <ParameterSlider
+                    Label="Beat History"
+                    Min="8"
+                    Max="32"
+                    Step="1"
+                    Value="@_options.BeatHistorySize"
+                    Unit="beats"
+                    Hint="Number of recent beats used to calculate the BPM."
+                    ValueChanged="v => UpdateOption(o => o with { BeatHistorySize = (int)v })" />
+            </div>
+        </section>
+
+        <!-- Footer spacer for console aesthetic -->
+        <div class="h-2"></div>
+    </main>
+</div>
+
+@code {
+    private bool _isListening;
+    private bool _isInitializing;
+    private double _bpm;
+    private double _energy;
+    private double _displayEnergy;
+    private int _beatCount;
+    private int _beatPhase = 4;
+    private int _confidence;
+    private string? _errorMessage;
+    private bool _showSettings;
+
+    private bool _strictTolerance = true;
+    private bool _hapticEnabled = true;
+    private bool _flashOnDrift = true;
+
+    private BpmOptions _options = new();
+    private DotNetObjectReference<Bpm>? _dotNetRef;
+
+    private const int HistorySize = 300; // ~30s at 100ms callback throttle
+    private readonly Queue<double> _history = new();
+    private double _lastHistoryValue;
+    private readonly List<double> _tapTimes = new();
+
+    private double Drift => _options.TargetBpm > 0 && _bpm > 0 ? _bpm - _options.TargetBpm : 0;
+    private double Tolerance => _strictTolerance ? 1.5 : 3.0;
+
+    private async Task ToggleListeningAsync()
+    {
+        if (_isListening)
+        {
+            await StopAsync();
+        }
+        else
+        {
+            await StartAsync();
+        }
+    }
+
+    private async Task StartAsync()
+    {
+        _isInitializing = true;
+        _errorMessage = null;
+        _bpm = 0;
+        _energy = 0;
+        _displayEnergy = 0;
+        _beatCount = 0;
+        _beatPhase = 4;
+        _confidence = 0;
+        _history.Clear();
+        _lastHistoryValue = 0;
+
+        try
+        {
+            _dotNetRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("BpmDetector.start", _dotNetRef, _options);
+            _isListening = true;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Could not start the BPM detector: {ex.Message}";
+        }
+        finally
+        {
+            _isInitializing = false;
+        }
+    }
+
+    private async Task StopAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("BpmDetector.stop");
+        }
+        finally
+        {
+            _dotNetRef?.Dispose();
+            _dotNetRef = null;
+            _isListening = false;
+            _isInitializing = false;
+            _bpm = 0;
+            _energy = 0;
+            _displayEnergy = 0;
+            _beatCount = 0;
+            _beatPhase = 4;
+            _confidence = 0;
+            _history.Clear();
+            _lastHistoryValue = 0;
+        }
+    }
+
+    private async Task ResetAsync()
+    {
+        await JS.InvokeVoidAsync("BpmDetector.reset");
+        _bpm = 0;
+        _energy = 0;
+        _displayEnergy = 0;
+        _beatCount = 0;
+        _beatPhase = 4;
+        _confidence = 0;
+        _history.Clear();
+        _lastHistoryValue = 0;
+    }
+
+    private async Task UpdateOption(Func<BpmOptions, BpmOptions> updater)
+    {
+        _options = updater(_options);
+        if (_isListening)
+        {
+            await JS.InvokeVoidAsync("BpmDetector.configure", _options);
+        }
+    }
+
+    private async Task OnTargetBpmChanged(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString();
+        if (int.TryParse(value, out var bpm) && bpm >= 30 && bpm <= 300)
+        {
+            await UpdateOption(o => o with { TargetBpm = bpm });
+        }
+        else if (string.IsNullOrWhiteSpace(value))
+        {
+            await UpdateOption(o => o with { TargetBpm = 0 });
+        }
+    }
+
+    private async Task ClearTargetBpmAsync()
+    {
+        await UpdateOption(o => o with { TargetBpm = 0 });
+    }
+
+    private async Task TapTempoAsync()
+    {
+        var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        _tapTimes.Add(now);
+        if (_tapTimes.Count > 4) _tapTimes.RemoveAt(0);
+
+        if (_tapTimes.Count >= 2)
+        {
+            var intervals = new List<double>();
+            for (var i = 1; i < _tapTimes.Count; i++)
+            {
+                intervals.Add(_tapTimes[i] - _tapTimes[i - 1]);
+            }
+
+            var avg = intervals.Average();
+            if (avg is > 200 and < 2000)
+            {
+                var bpm = (int)Math.Round(60000.0 / avg);
+                await UpdateOption(o => o with { TargetBpm = bpm });
+            }
+        }
+    }
+
+    [JSInvokable]
+    public void UpdateBpm(BpmUpdate update)
+    {
+        _bpm = update.Bpm;
+        _energy = update.Energy;
+        _displayEnergy = update.DisplayEnergy;
+        _beatCount = update.BeatCount;
+        _confidence = update.Confidence;
+        _beatPhase = update.BeatPhase is >= 1 and <= 4 ? update.BeatPhase : 4;
+
+        if (_history.Count == 0 || Math.Abs(_lastHistoryValue - _bpm) > 0.01)
+        {
+            _history.Enqueue(_bpm);
+            _lastHistoryValue = _bpm;
+            while (_history.Count > HistorySize)
+            {
+                _history.Dequeue();
+            }
+        }
+
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public void OnError(string message)
+    {
+        _errorMessage = message;
+        _isListening = false;
+        _isInitializing = false;
+        _dotNetRef?.Dispose();
+        _dotNetRef = null;
+        StateHasChanged();
+    }
+
+    private double GetDriftPercent()
+    {
+        var drift = Drift;
+        var clamped = Math.Max(-8, Math.Min(8, drift));
+        return ((clamped + 8) / 16) * 100;
+    }
+
+    private string GetDriftText()
+    {
+        var drift = Drift;
+        var sign = drift >= 0 ? "+" : "";
+        if (_options.TargetBpm <= 0 || _bpm <= 0) return "NO TARGET";
+        if (Math.Abs(drift) <= 0.4) return "LOCKED";
+        if (drift > Tolerance) return $"RUSH {sign}{drift:F1}";
+        if (drift < -Tolerance) return $"LAG {drift:F1}";
+        return $"{sign}{drift:F1} BPM";
+    }
+
+    private string GetDriftTextClass()
+    {
+        var drift = Drift;
+        if (_options.TargetBpm <= 0 || _bpm <= 0) return "text-on-surface-variant";
+        if (Math.Abs(drift) <= 0.4) return "text-primary";
+        if (Math.Abs(drift) > Tolerance) return drift > 0 ? "text-tertiary" : "text-secondary";
+        return "text-secondary";
+    }
+
+    private string GetDriftNeedleClass()
+    {
+        var drift = Drift;
+        if (_options.TargetBpm <= 0 || _bpm <= 0) return "";
+        if (Math.Abs(drift) <= 0.4) return "";
+        if (drift > Tolerance) return "rush";
+        if (drift < -Tolerance) return "drag";
+        return drift > 0 ? "rush" : "drag";
+    }
+
+    private string GetStatusDotClass()
+    {
+        if (!_isListening || _bpm <= 0) return "bg-text-muted";
+        var drift = Drift;
+        if (_options.TargetBpm <= 0) return "bg-primary";
+        if (Math.Abs(drift) <= 0.4) return "bg-primary";
+        if (Math.Abs(drift) > Tolerance) return drift > 0 ? "bg-tertiary" : "bg-secondary";
+        return drift > 0 ? "bg-tertiary" : "bg-secondary";
+    }
+
+    private string GetStatusTextClass()
+    {
+        if (!_isListening || _bpm <= 0) return "text-on-surface-variant";
+        var drift = Drift;
+        if (_options.TargetBpm <= 0) return "text-primary";
+        if (Math.Abs(drift) <= 0.4) return "text-primary";
+        if (Math.Abs(drift) > Tolerance) return drift > 0 ? "text-tertiary" : "text-secondary";
+        return drift > 0 ? "text-tertiary" : "text-secondary";
+    }
+
+    private string GetStatusText()
+    {
+        if (!_isListening) return "STANDBY";
+        if (_bpm <= 0) return "CALIBRATING";
+        var drift = Drift;
+        var sign = drift >= 0 ? "+" : "";
+        if (_options.TargetBpm <= 0) return $"LIVE ({_bpm:F0})";
+        if (Math.Abs(drift) <= 0.4) return $"POCKET ({sign}{drift:F1})";
+        if (drift > Tolerance) return $"RUSH ({sign}{drift:F1})";
+        if (drift < -Tolerance) return $"DRAG ({drift:F1})";
+        return $"TRACK ({sign}{drift:F1})";
+    }
+
+    private string GetSparklinePath()
+    {
+        var points = GetSparklinePoints();
+        if (points.Count < 2) return string.Empty;
+
+        var commands = new System.Text.StringBuilder();
+        commands.Append($"M 0,{points[0].Y:F1}");
+        for (var i = 1; i < points.Count; i++)
+        {
+            commands.Append($" L {points[i].X:F1},{points[i].Y:F1}");
+        }
+        return commands.ToString();
+    }
+
+    private string GetSparklineAreaPoints()
+    {
+        var points = GetSparklinePoints();
+        if (points.Count < 2) return string.Empty;
+
+        var sb = new System.Text.StringBuilder();
+        sb.Append($"0,{points[0].Y:F1} ");
+        foreach (var p in points)
+        {
+            sb.Append($"{p.X:F1},{p.Y:F1} ");
+        }
+        sb.Append("300,70 0,70");
+        return sb.ToString();
+    }
+
+    private double GetSparklineLastY()
+    {
+        var points = GetSparklinePoints();
+        return points.Count > 0 ? points[^1].Y : 35;
+    }
+
+    private List<(double X, double Y)> GetSparklinePoints()
+    {
+        var result = new List<(double X, double Y)>();
+        if (_history.Count < 2) return result;
+
+        var values = _history.ToArray();
+        var baseBpm = _options.TargetBpm > 0 ? (double)_options.TargetBpm : values.Average();
+        var min = values.Min();
+        var max = values.Max();
+        var range = Math.Max(Math.Max(max - baseBpm, baseBpm - min), 2.0) * 2;
+
+        for (var i = 0; i < values.Length; i++)
+        {
+            var x = (i / (double)(values.Length - 1)) * 300;
+            var normalized = (values[i] - baseBpm + range / 2) / range;
+            var y = 70 - Math.Clamp(normalized * 70, 4, 66);
+            result.Add((x, y));
+        }
+
+        return result;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_isListening)
+        {
+            await StopAsync();
+        }
+    }
+
+    public sealed record BpmOptions(
+        double Sensitivity = 1.5,
+        int MinBeatIntervalMs = 273,
+        double Smoothing = 0.7,
+        int FilterFrequency = 800,
+        double FilterQ = 1.0,
+        double EnergyFloor = 0.015,
+        int BeatHistorySize = 16,
+        int EnergyHistorySize = 43,
+        int TargetBpm = 0);
+
+    public sealed record BpmUpdate(
+        double Bpm,
+        double Energy,
+        double DisplayEnergy,
+        int BeatCount,
+        int Confidence,
+        int BeatPhase);
+}

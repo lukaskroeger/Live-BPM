@@ -1,6 +1,586 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap');
+
 @source "./**/*.{razor,html,cshtml}";
 
 @plugin "daisyui" {
-  themes: light --default;
+  themes: livebpm --default;
+}
+
+@plugin "daisyui/theme" {
+  name: "livebpm";
+  default: true;
+  prefersdark: true;
+  --color-base-100: #101419;
+  --color-base-200: #181c21;
+  --color-base-300: #1c2025;
+  --color-base-content: #e0e2ea;
+  --color-primary: #00ff87;
+  --color-primary-content: #003919;
+  --color-secondary: #ffb800;
+  --color-secondary-content: #412d00;
+  --color-accent: #ff3355;
+  --color-accent-content: #680018;
+  --color-neutral: #101419;
+  --color-neutral-content: #e0e2ea;
+  --color-info: #00e5ff;
+  --color-info-content: #002833;
+  --color-success: #00ff87;
+  --color-success-content: #003919;
+  --color-warning: #ffb800;
+  --color-warning-content: #412d00;
+  --color-error: #ff3355;
+  --color-error-content: #680018;
+}
+
+@theme {
+  /* Pro-Audio Precision Console palette (from DESIGN.md) */
+  --color-surface: #101419;
+  --color-surface-dim: #101419;
+  --color-surface-bright: #36393f;
+  --color-surface-lowest: #0a0e13;
+  --color-surface-low: #181c21;
+  --color-surface-container: #1c2025;
+  --color-surface-high: #262a30;
+  --color-surface-highest: #31353b;
+
+  --color-on-surface: #e0e2ea;
+  --color-on-surface-variant: #b9cbb9;
+  --color-outline: #849585;
+  --color-outline-variant: #3b4b3d;
+  --color-surface-tint: #00e478;
+
+  --color-primary: #00ff87;
+  --color-primary-dim: #00e478;
+  --color-on-primary: #003919;
+  --color-primary-container: #00ff87;
+  --color-on-primary-container: #007138;
+  --color-inverse-primary: #006d36;
+
+  --color-secondary: #ffb800;
+  --color-secondary-dim: #ffba20;
+  --color-on-secondary: #412d00;
+  --color-secondary-container: #feb700;
+  --color-on-secondary-container: #6b4b00;
+
+  --color-tertiary: #ff3355;
+  --color-tertiary-dim: #ffb3b5;
+  --color-on-tertiary: #680018;
+  --color-tertiary-container: #ffd4d4;
+  --color-on-tertiary-container: #c50036;
+
+  --color-error: #ffb4ab;
+  --color-on-error: #690005;
+  --color-error-container: #93000a;
+  --color-on-error-container: #ffdad6;
+
+  --color-text-muted: #5f7596;
+  --color-border-subdued: #232e40;
+  --color-raised: #1a2230;
+  --color-recessed: #080b0f;
+  --color-canvas: #0b0f14;
+
+  /* Typography */
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+
+  /* Spacing */
+  --spacing-gutter: 1rem;
+  --spacing-gutter-sm: 0.5rem;
+  --spacing-gutter-lg: 1.5rem;
+  --spacing-margin: 1.5rem;
+  --spacing-space-xs: 0.25rem;
+  --spacing-space-sm: 0.5rem;
+  --spacing-space-md: 0.75rem;
+  --spacing-space-lg: 1.25rem;
+  --spacing-space-xl: 2rem;
+
+  /* Radii */
+  --radius-sm: 0.125rem;
+  --radius-md: 0.25rem;
+  --radius-lg: 0.375rem;
+  --radius-xl: 0.5rem;
+  --radius-2xl: 0.75rem;
+
+  /* Shadows / elevation */
+  --shadow-raised: 0 2px 4px rgba(0, 0, 0, 0.6);
+  --shadow-recessed: inset 0 1px 3px rgba(0, 0, 0, 0.8);
+  --shadow-glow-primary: 0 0 10px rgba(0, 255, 135, 0.45), 0 0 1px #00ff87;
+  --shadow-glow-secondary: 0 0 10px rgba(255, 184, 0, 0.45), 0 0 1px #ffb800;
+  --shadow-glow-tertiary: 0 0 10px rgba(255, 51, 85, 0.5), 0 0 1px #ff3355;
+
+  /* Performance UI timing */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-circ: cubic-bezier(0.85, 0, 0.15, 1);
+}
+
+@layer base {
+  html,
+  body,
+  #app {
+    min-height: 100vh;
+    background-color: var(--color-canvas);
+    color: var(--color-on-surface);
+    font-family: var(--font-sans);
+  }
+
+  /* Tactile button reset */
+  button {
+    font-family: inherit;
+  }
+}
+
+@layer components {
+  /* Chassis module plate */
+  .module-plate {
+    background-color: var(--color-surface-container);
+    border: 1px solid var(--color-border-subdued);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-raised);
+  }
+
+  .module-header {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    padding: var(--spacing-space-md) var(--spacing-gutter);
+    border-bottom: 1px solid var(--color-border-subdued);
+    background-color: var(--color-surface-low);
+    border-top-left-radius: var(--radius-md);
+    border-top-right-radius: var(--radius-md);
+  }
+
+  /* Mechanical transport button */
+  .btn-transport {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-space-sm);
+    min-height: 48px;
+    padding: 0 var(--spacing-gutter);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-on-surface);
+    background-color: var(--color-raised);
+    border: 1px solid var(--color-border-subdued);
+    border-radius: var(--radius-md);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: var(--shadow-raised);
+    cursor: pointer;
+    transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease;
+    user-select: none;
+  }
+
+  .btn-transport:hover {
+    background-color: var(--color-surface-high);
+  }
+
+  .btn-transport:active {
+    border-top-color: var(--color-border-subdued);
+    transform: translateY(1px);
+    box-shadow: none;
+  }
+
+  .btn-transport:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .btn-transport-primary {
+    color: var(--color-primary);
+    border-color: var(--color-primary-dim);
+    box-shadow: var(--shadow-glow-primary);
+  }
+
+  .btn-transport-primary:hover {
+    background-color: rgba(0, 255, 135, 0.08);
+  }
+
+  .btn-transport-secondary {
+    color: var(--color-secondary);
+    border-color: var(--color-secondary);
+    box-shadow: var(--shadow-glow-secondary);
+  }
+
+  .btn-transport-secondary:hover {
+    background-color: rgba(255, 184, 0, 0.08);
+  }
+
+  /* Recessed sunken input well */
+  .input-well {
+    min-height: 40px;
+    padding: 0 var(--spacing-space-sm);
+    font-family: var(--font-mono);
+    font-size: 16px;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-on-surface);
+    background-color: var(--color-recessed);
+    border: 1px solid var(--color-border-subdued);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-recessed);
+    outline: none;
+  }
+
+  .input-well:focus {
+    border-color: var(--color-outline);
+  }
+
+  .input-well::placeholder {
+    color: var(--color-text-muted);
+  }
+
+  /* Compact inline numeric input for telemetry chips */
+  .input-inline {
+    width: 3rem;
+    padding: 0;
+    font-family: var(--font-mono);
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-primary);
+    background-color: transparent;
+    border: none;
+    border-bottom: 1px solid transparent;
+    border-radius: 0;
+    outline: none;
+    text-align: center;
+  }
+
+  .input-inline:focus {
+    border-bottom-color: var(--color-primary);
+  }
+
+  .input-inline::placeholder {
+    color: var(--color-text-muted);
+  }
+
+  /* Hide number spin buttons for inline telemetry inputs */
+  .input-inline::-webkit-outer-spin-button,
+  .input-inline::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  .input-inline[type="number"] {
+    -moz-appearance: textfield;
+  }
+
+  /* Segmented LED meter */
+  .led-meter {
+    display: flex;
+    gap: 1px;
+    align-items: flex-end;
+    height: 8px;
+  }
+
+  .led-segment {
+    flex: 1 1 auto;
+    height: 8px;
+    background-color: rgba(0, 255, 135, 0.15);
+    border-radius: var(--radius-sm);
+    transition: background-color 60ms linear, box-shadow 60ms linear;
+  }
+
+  .led-segment.active {
+    background-color: var(--color-primary);
+    box-shadow: var(--shadow-glow-primary);
+  }
+
+  .led-segment.warning {
+    background-color: var(--color-secondary);
+    box-shadow: var(--shadow-glow-secondary);
+  }
+
+  .led-segment.critical {
+    background-color: var(--color-tertiary);
+    box-shadow: var(--shadow-glow-tertiary);
+  }
+
+  /* Status / control chip */
+  .control-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-space-sm);
+    padding: var(--spacing-space-xs) var(--spacing-space-sm);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-on-surface-variant);
+    background-color: var(--color-surface-low);
+    border-radius: var(--radius-md);
+  }
+
+  .control-chip-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    background-color: var(--color-text-muted);
+  }
+
+  .control-chip.active .control-chip-dot {
+    background-color: var(--color-primary);
+    box-shadow: var(--shadow-glow-primary);
+  }
+
+  .control-chip.warning .control-chip-dot {
+    background-color: var(--color-secondary);
+    box-shadow: var(--shadow-glow-secondary);
+  }
+
+  .control-chip.critical .control-chip-dot {
+    background-color: var(--color-tertiary);
+    box-shadow: var(--shadow-glow-tertiary);
+  }
+
+  /* Numeric telemetry display */
+  .telemetry-value {
+    font-family: var(--font-mono);
+    font-size: 24px;
+    font-weight: 600;
+    line-height: 28px;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .telemetry-unit {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 14px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+
+  /* Display hero (large BPM readout) */
+  .display-hero {
+    font-family: var(--font-mono);
+    font-size: 72px;
+    font-weight: 700;
+    line-height: 72px;
+    letter-spacing: -0.04em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (max-width: 767px) {
+    .display-hero {
+      font-size: 44px;
+      line-height: 48px;
+      letter-spacing: -0.03em;
+    }
+  }
+
+  /* Range slider / fader track */
+  .fader-track {
+    width: 100%;
+    height: 6px;
+    appearance: none;
+    background-color: var(--color-recessed);
+    border: 1px solid var(--color-border-subdued);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-recessed);
+    outline: none;
+  }
+
+  .fader-track::-webkit-slider-thumb {
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    background-color: var(--color-raised);
+    border: 1px solid var(--color-outline);
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-raised);
+    cursor: pointer;
+    transition: background-color 120ms ease, border-color 120ms ease;
+  }
+
+  .fader-track::-webkit-slider-thumb:hover {
+    background-color: var(--color-surface-high);
+    border-color: var(--color-primary-dim);
+  }
+
+  .fader-track::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    background-color: var(--color-raised);
+    border: 1px solid var(--color-outline);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-raised);
+    cursor: pointer;
+  }
+
+  /* Beat flash indicator */
+  .beat-flash {
+    width: 12px;
+    height: 12px;
+    border-radius: 9999px;
+    background-color: var(--color-text-muted);
+    opacity: 0.3;
+    transition: opacity 40ms linear;
+  }
+
+  .beat-flash.active {
+    background-color: var(--color-primary);
+    box-shadow: var(--shadow-glow-primary);
+    opacity: 1;
+  }
+
+  /* Performance console: 4-beat step indicator */
+  .beat-step {
+    flex: 1 1 0%;
+    height: 6px;
+    border-radius: var(--radius-sm);
+    background-color: var(--color-surface-highest);
+    transition: background-color 80ms linear, box-shadow 80ms linear;
+  }
+
+  .beat-step.active {
+    background-color: var(--color-primary);
+    box-shadow: var(--shadow-glow-primary);
+  }
+
+  .beat-step.downbeat {
+    height: 10px;
+    background-color: var(--color-primary);
+    box-shadow: var(--shadow-glow-primary);
+  }
+
+  /* Performance console: module card */
+  .perf-module {
+    background-color: var(--color-surface-low);
+    border: 1px solid var(--color-border-subdued);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-raised);
+  }
+
+  /* Performance console: recessed telemetry well */
+  .telemetry-well {
+    background-color: var(--color-recessed);
+    border: 1px solid var(--color-border-subdued);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-recessed);
+  }
+
+  /* Performance console: tab bar */
+  .tab-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    height: 64px;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background-color: var(--color-surface-lowest);
+    border-top: 1px solid var(--color-border-subdued);
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.6);
+  }
+
+  .tab-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-space-xs);
+    min-width: 64px;
+    height: 48px;
+    border-radius: var(--radius-md);
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-on-surface-variant);
+    transition: color 120ms ease, background-color 120ms ease;
+  }
+
+  .tab-item.active {
+    color: var(--color-primary);
+    background-color: rgba(0, 255, 135, 0.08);
+  }
+
+  /* Drift / tuner needle */
+  .drift-needle {
+    position: absolute;
+    top: -4px;
+    bottom: -4px;
+    width: 4px;
+    border-radius: var(--radius-sm);
+    background-color: var(--color-primary);
+    box-shadow: var(--shadow-glow-primary);
+    transition: left 200ms var(--ease-out-expo), background-color 200ms ease, box-shadow 200ms ease;
+  }
+
+  .drift-needle.rush {
+    background-color: var(--color-tertiary);
+    box-shadow: var(--shadow-glow-tertiary);
+  }
+
+  .drift-needle.drag {
+    background-color: var(--color-secondary);
+    box-shadow: var(--shadow-glow-secondary);
+  }
+
+  /* Toggle badge */
+  .toggle-badge {
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .toggle-badge.on {
+    background-color: rgba(0, 255, 135, 0.12);
+    color: var(--color-primary);
+  }
+
+  .toggle-badge.off {
+    background-color: var(--color-surface-highest);
+    color: var(--color-on-surface-variant);
+  }
+}
+
+@layer utilities {
+  /* Safe-area insets */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  /* Tabular numeric stabilization for live telemetry */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Hide scrollbars for console aesthetic */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* Blazor error UI customization */
+#blazor-error-ui {
+  background: var(--color-error-container);
+  color: var(--color-on-error-container);
+  border-top: 1px solid var(--color-error);
 }

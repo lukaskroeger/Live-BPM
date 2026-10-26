@@ -2,25 +2,25 @@
 
 <div class="drawer lg:drawer-open">
     <input id="drawer" type="checkbox" class="drawer-toggle" />
-    <div class="drawer-content flex flex-col min-h-screen">
-        <div class="navbar bg-base-100 shadow-sm lg:hidden">
+    <div class="drawer-content flex flex-col min-h-screen bg-canvas">
+        <div class="navbar bg-surface-container border-b border-border-subdued lg:hidden shadow-raised">
             <div class="flex-none">
-                <label for="drawer" class="btn btn-square btn-ghost">
+                <label for="drawer" class="btn btn-square btn-ghost text-on-surface">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block h-6 w-6 stroke-current">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                     </svg>
                 </label>
             </div>
-            <div class="flex-1 px-4 font-bold text-primary">LiveBPM</div>
+            <div class="flex-1 px-4 font-display font-bold text-primary tracking-tight">LiveBPM</div>
         </div>
-        <main class="flex-1 p-6">
+        <main class="flex-1 p-4 lg:p-6">
             @Body
         </main>
     </div>
     <div class="drawer-side">
         <label for="drawer" class="drawer-overlay"></label>
-        <aside class="bg-base-200 min-h-full w-64 p-4 flex flex-col">
-            <div class="text-2xl font-bold text-primary mb-8 px-2">LiveBPM</div>
+        <aside class="min-h-full w-64 p-4 flex flex-col bg-surface-container border-r border-border-subdued shadow-raised">
+            <div class="text-2xl font-display font-bold text-primary tracking-tight mb-8 px-2">LiveBPM</div>
             <NavMenu />
         </aside>
     </div>

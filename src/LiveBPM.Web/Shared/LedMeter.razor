@@ -1,0 +1,52 @@
+<div class="led-meter" role="meter" aria-label="@Label" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@AriaValueNow">
+    @for (var i = 0; i < Segments; i++)
+    {
+        var index = i;
+        <div class="@SegmentClass(index)"></div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public double Value { get; set; }
+
+    [Parameter]
+    public int Segments { get; set; } = 16;
+
+    [Parameter]
+    public string Variant { get; set; } = "vu";
+
+    [Parameter]
+    public string Label { get; set; } = "Meter";
+
+    private int ActiveSegmentCount => (int)Math.Clamp(Value * Segments, 0, Segments);
+
+    private int AriaValueNow => (int)Math.Clamp(Value * 100, 0, 100);
+
+    private string SegmentClass(int index)
+    {
+        var activeClass = index < ActiveSegmentCount ? GetActiveClass(index) : string.Empty;
+        return string.IsNullOrEmpty(activeClass) ? "led-segment" : $"led-segment {activeClass}";
+    }
+
+    private string GetActiveClass(int index)
+    {
+        var position = (double)index / Math.Max(1, Segments - 1);
+
+        if (Variant == "vu")
+        {
+            if (position >= 0.85) return "critical";
+            if (position >= 0.65) return "warning";
+            return "active";
+        }
+
+        if (Variant == "confidence")
+        {
+            if (position >= 0.75) return "active";
+            if (position >= 0.40) return "warning";
+            return "critical";
+        }
+
+        return "active";
+    }
+}
