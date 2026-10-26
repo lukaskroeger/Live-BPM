@@ -107,6 +107,18 @@
                     <span class="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-on-surface-variant ml-2">BPM</span>
                 </div>
 
+                <!-- Mic input level meter -->
+                <div class="mt-4 w-full max-w-[280px] flex flex-col gap-1">
+                    <div class="flex items-center justify-between">
+                        <span class="font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-on-surface-variant">Mic Input</span>
+                        <span class="font-mono text-[9px] font-bold uppercase tracking-wider text-primary tabular-nums">@(_isListening ? _displayEnergy.ToString("0%", System.Globalization.CultureInfo.InvariantCulture) : "--")</span>
+                    </div>
+                    <div class="relative w-full h-2 rounded bg-surface-high border border-border-subdued overflow-hidden">
+                        <div class="absolute inset-y-0 left-0 bg-primary transition-[width] duration-75 ease-linear"
+                             style="width: @((Math.Clamp(_displayEnergy, 0, 1) * 100).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture))%;"></div>
+                    </div>
+                </div>
+
                 <!-- Status pill -->
                 <div class="mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface-high border border-border-subdued">
                     <span class="w-2 h-2 rounded-full @GetStatusDotClass() @(_isListening ? "animate-pulse" : "") shadow-[0_0_8px_currentColor]"></span>
